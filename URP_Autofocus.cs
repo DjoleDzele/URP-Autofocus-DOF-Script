@@ -8,6 +8,7 @@ public class DofFocus : MonoBehaviour
     private Camera cameraMain;
     public VolumeProfile postFxProfile;
     private DepthOfField dof;
+    private MinFloatParameter dofDistanceParametar;
 
     private Ray ray;
     private RaycastHit hit;
@@ -15,14 +16,23 @@ public class DofFocus : MonoBehaviour
     public LayerMask mask;
     // private bool isHit = false;
 
-    public float defaultDistance = 100f;
+    public float defaultDistance = 5f;
+    public float minDistance = 0.5f;
     private float hitDistance;
     public float focusSpeed = 1f;
     public int updateFrequency = 2;
 
+    private Transform thisTransform;
+
+    private void Awake()
+    {
+        thisTransform = transform;
+    }
+
     private void Start()
     {
         postFxProfile.TryGet<DepthOfField>(out dof);
+        dofDistanceParametar = dof.focusDistance;
         viewportCenter = new Vector3(0.5f, 0.5f, 0);
         cameraMain = GetComponent<Camera>();
     }
@@ -32,17 +42,24 @@ public class DofFocus : MonoBehaviour
         if (Time.frameCount % updateFrequency == 0)
         {
             ray = cameraMain.ViewportPointToRay(viewportCenter);
-            if (Physics.Raycast(ray, out hit, 100f, mask))
+            if (Physics.Raycast(ray, out hit, defaultDistance - 0.1f, mask))
             {
                 // isHit = true;
-                hitDistance = Vector3.Distance(transform.position, hit.point);
+                hitDistance = hit.distance;
+                if (hitDistance < minDistance)
+                {
+                    hitDistance = minDistance;
+                }
+                dofDistanceParametar.value = Mathf.Lerp(dofDistanceParametar.value, hitDistance, focusSpeed);
             }
             else
             {
                 // isHit = false;
-                hitDistance = defaultDistance;
+                if (dofDistanceParametar.value < defaultDistance)
+                {
+                    dofDistanceParametar.value = Mathf.Lerp(dofDistanceParametar.value, defaultDistance, focusSpeed);
+                }
             }
-            dof.focusDistance.value = Mathf.Lerp(dof.focusDistance.value, hitDistance, focusSpeed);
         }
     }
 
@@ -51,11 +68,11 @@ public class DofFocus : MonoBehaviour
     //  if (isHit)
     //  {
     //      Gizmos.DrawSphere(hit.point, 0.1f);
-    //      Debug.DrawRay(transform.position, transform.forward * hitDistance);
+    //      Debug.DrawRay(thisTransform.position, thisTransform.forward * hitDistance);
     //  }
     //  else
     //  {
-    //      Debug.DrawRay(transform.position, transform.forward * 1000f);
+    //      Debug.DrawRay(thisTransform.position, thisTransform.forward * 1000f);
     //  }
     // }
 }
